@@ -1,7 +1,6 @@
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 
-
 async def scrape_osrs_item_drops(item_name):
 
     url = f"https://oldschool.runescape.wiki/w/{item_name.replace(' ', '_')}"
@@ -54,7 +53,25 @@ async def scrape_osrs_item_drops(item_name):
         page_title = await page.title()
         corrected_name = page_title.split(" - ")[0]
         results_found = [ f"{corrected_name} droped by:\n"]
-        
+
+
+        figure = soup.find("figure", class_="mw-halign-left")
+        img_tag = figure.find("img") if figure else None
+
+        # get image from figure if it exists
+        if img_tag:
+            src = img_tag["src"]
+            
+            if "/thumb/" in src:
+                src = src.replace("/thumb/", "/")
+                src = src.rsplit("/", 1)[0]
+            
+            src = "https://oldschool.runescape.wiki" + src
+            
+
+        results = []
+        results.append(src if img_tag else None)
+
         # extract monster names, quantities, and rarities along with links
         for row in rows:
             cells = row.find_all("td")
@@ -67,5 +84,8 @@ async def scrape_osrs_item_drops(item_name):
                 rarity = cells[3].get_text(strip=True)
                 results_found.append(f"- {monster} — Qty: {quantity} — Drop rate: {rarity} --- {link}")
         results_found.append("\n")
+        results.append("\n".join(results_found))
+
         await browser.close()
-        return "\n".join(results_found)
+
+        return results

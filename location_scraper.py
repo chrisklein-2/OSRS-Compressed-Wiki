@@ -53,6 +53,24 @@ async def scrape_osrs_mob_location(mob_name):
         corrected_name = page_title.split(" - ")[0]
         results_found = [ f"Locations for {corrected_name}:\n"]
 
+        # Find the figure with the image
+        infobox = soup.find("table", class_="infobox")
+        img_tag = infobox.find("img")
+
+        # get image from infobox if it exists
+        if img_tag:
+            src = img_tag["src"]
+            
+            if "/thumb/" in src:
+                src = src.replace("/thumb/", "/")
+                src = src.rsplit("/", 1)[0]
+            
+            src = "https://oldschool.runescape.wiki" + src
+            
+        results = []
+        results.append(src if img_tag else None)
+
+
         # extract location names, levels, and number of spawns along with links
         for row in rows:
             cells = row.find_all("td")
@@ -65,5 +83,7 @@ async def scrape_osrs_mob_location(mob_name):
                 spawns = cells[3].get_text(strip=True)
                 results_found.append(f"- {location} — Levels: {levels} — Number of Spaws: {spawns} --- {link}")
         results_found.append("\n")
+        results.append("\n".join(results_found))
+        
         await browser.close()
-        return "\n".join(results_found)
+        return results

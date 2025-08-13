@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import scrolledtext
 import asyncio
 import webbrowser
+from PIL import Image, ImageTk
+from io import BytesIO
+import requests
 from location_scraper import scrape_osrs_mob_location
 from item_scraper import scrape_osrs_item_drops
 
@@ -14,7 +17,7 @@ class OSRSScraperGUI:
         self.root = tk.Tk()
         self.root.title("OSRS Item Drop Scraper")
         self.root.configure(bg=background_color)
-
+        self.root.geometry("1000x800")
         self.should_exit = False
         self.setup_widgets()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -27,6 +30,8 @@ class OSRSScraperGUI:
         self.dropdown.config(font=("Segoe UI", 12, "bold"), bg=secondary_background_color, fg="black", 
                                     activebackground=secondary_background_color, activeforeground="black")
         self.dropdown.pack(side="top", anchor="ne", padx=10, pady=10)
+
+        self.thumbnail_image = tk.Label(self.root, image=None, bg=background_color)
 
         self.prompt_label = tk.Label(self.root, text=f"Enter OSRS {self.scraper_choice.get().split()[0]}:",bg=background_color,   
                  fg="white",      
@@ -143,10 +148,11 @@ class OSRSScraperGUI:
         self.root.update_idletasks()
 
         if self.scraper_choice.get() == "Item Drop":
-            result = await scrape_osrs_item_drops(name)
+            results = await scrape_osrs_item_drops(name)
         elif self.scraper_choice.get() == "Mob Location":
-            result = await scrape_osrs_mob_location(name)
+            results = await scrape_osrs_mob_location(name)
         
+
         # re-enable input
         self.entry.config(state="normal")
         self.scrape_button.config(state="normal")
@@ -155,14 +161,30 @@ class OSRSScraperGUI:
         self.searching_label.config(text="")
         
         # red text for errors
-        if "No " in result:
+        if "No " in results:
             self.output_text.config(fg="red")
-            self.append_output(result)
+            self.append_output(results)
             return
         else:
             self.output_text.config(fg="black")
         
-        lines = result.split("\n")
+        image_url = results[0]
+        lines = results[1].split("\n")
+
+        # if image_url is not None, display it
+        if image_url:
+            respone = requests.get(image_url)
+            img_data = respone.content
+
+            pil_image = Image.open(BytesIO(img_data))
+            pil_image = pil_image.resize((150, 150))
+
+            tk_image = ImageTk.PhotoImage(pil_image)
+            self.thumbnail_image.config(image=tk_image)
+            self.thumbnail_image.image = tk_image
+            self.thumbnail_image.pack(pady=10)
+            self.thumbnail_image.place(x=10, y=10)
+
         
         # print out first line as title then remove it from lines
         self.append_output(f"{lines[0]}\n")
